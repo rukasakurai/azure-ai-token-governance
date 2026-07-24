@@ -1,14 +1,14 @@
 # Token governance sample
 
-This repository is a standalone `azd` + Bicep sample for end-user token governance.
+This repository is a standalone `azd` + Bicep sample for per-APIM-subscription token quota governance.
 
 It demonstrates three approaches behind one Azure API Management (APIM) product:
 
 | Approach | Enforcement | Usage source | Guarantee |
 | --- | --- | --- | --- |
-| Simple | APIM `llm-token-limit` | App Service query to Log Analytics | Immediate headers, delayed usage history |
-| APIM-only | APIM `llm-token-limit` | APIM policy query to Log Analytics | No App Service query path |
-| Strict | Atomic reservation + settlement | Azure Table Storage ledger | Authoritative committed + reserved usage |
+| Simple | APIM post-response token accounting | App Service query to Log Analytics | Best-effort monthly limit; delayed usage history |
+| APIM-only | APIM post-response token accounting | APIM policy query to Log Analytics | Best-effort monthly limit; no App Service query path |
+| Strict | Atomic reservation + settlement | Azure Table Storage ledger | Authoritative quota accounting for committed + reserved tokens |
 
 The same APIM policies, reporting API, and strict ledger are shared across both account products:
 
@@ -28,6 +28,8 @@ azd up
 
 `ENABLE_TOKEN_USAGE_SAMPLE=false` (default) avoids APIM deployment/cost.
 
+Small token quotas limit model consumption, not fixed infrastructure charges. Enabling the sample deploys billable resources including APIM Developer tier and App Service B1.
+
 ## Run isolated E2E
 
 ```bash
@@ -43,6 +45,8 @@ The script creates and deletes an isolated APIM subscription key for each run.
 
 All operations require `Ocp-Apim-Subscription-Key`.
 
+Quota state is keyed by APIM subscription. To enforce a separate quota for each end user, issue a distinct subscription per user or add an authenticated identity-to-subscription mapping layer; this sample does not implement end-user authentication.
+
 | Operation | Purpose |
 | --- | --- |
 | `POST /token-usage/simple/chat/completions` | Non-streaming chat with APIM token limit |
@@ -55,5 +59,7 @@ All operations require `Ocp-Apim-Subscription-Key`.
 ## Limitations
 
 - Usage for simple/APIM-only paths is eventually consistent (Log Analytics ingestion delay).
+- Simple/APIM-only quota usage is recorded after backend responses, so large or concurrent requests can exceed the configured limit before APIM observes their usage.
 - Strict endpoint supports one `user` text message and non-streaming calls only.
+- Strict accounting charges the full reservation when actual usage cannot be determined or a reservation expires. Reported backend usage greater than the reservation is recorded in full and can take the period total above the configured quota.
 - APIM API diagnostic property for LLM token logs uses preview API `2025-09-01-preview`.

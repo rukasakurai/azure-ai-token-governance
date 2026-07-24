@@ -1,6 +1,6 @@
 # Azure AI token governance sample
 
-Standalone Azure Developer CLI (`azd`) and Bicep sample for end-user token governance across:
+Standalone Azure Developer CLI (`azd`) and Bicep sample for per-APIM-subscription token quota governance across:
 
 - Microsoft Foundry (`AIServices` account kind)
 - Azure OpenAI Service (`OpenAI` account kind)
@@ -12,7 +12,7 @@ Standalone Azure Developer CLI (`azd`) and Bicep sample for end-user token gover
   - Developer tier APIM with `llm-token-limit` policies
   - .NET 10 token usage API on App Service
   - Log Analytics + Application Insights for eventual usage reporting
-  - Azure Table Storage authoritative ledger for strict quota
+  - Azure Table Storage ledger for authoritative quota accounting
 
 ## Deployment
 
@@ -23,13 +23,15 @@ azd env set ENABLE_TOKEN_USAGE_SAMPLE true
 azd up
 ```
 
-Default quotas are intentionally small for low-cost testing:
+Default quotas are intentionally small to limit token consumption during testing:
 
 - `SIMPLE_TOKEN_QUOTA=600`
 - `STRICT_TOKEN_QUOTA=600`
 - `STRICT_RESERVATION_TOKENS=256`
 - `STRICT_MAX_OUTPUT_TOKENS=64`
 - `STRICT_SAFETY_PADDING_TOKENS=64`
+
+These limits do not cap the fixed hourly cost of deployed resources such as APIM Developer tier and App Service B1.
 
 ## APIs and tests
 
@@ -50,7 +52,10 @@ Isolated end-to-end test:
 ## Limitations
 
 - Simple and APIM-only usage endpoints are eventually consistent due to Log Analytics ingestion delay.
+- Simple and APIM-only limits use post-response token accounting. Large or concurrent requests can exceed the configured quota before APIM records their usage.
+- Quotas are scoped to APIM subscriptions. Per-user governance requires a separate subscription per user or an additional identity-to-subscription mapping layer.
 - Strict mode is non-streaming and accepts exactly one `user` text message.
+- Strict mode charges the full reservation when actual usage cannot be determined or a reservation expires. If reported backend usage exceeds its reservation, the complete usage is recorded and can take the period total above the configured quota.
 - This is a demonstration sample and intentionally omits production platform hardening beyond the three approaches.
 
 ## Costs incurred

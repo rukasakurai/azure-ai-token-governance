@@ -15,7 +15,7 @@ Install the .NET 10 SDK, Azure CLI, Azure Developer CLI (`azd`), `jq`, `curl`, a
 - Prefer small, surgical changes over new abstractions or additional infrastructure.
 - Preserve support for both `AIServices` and `OpenAI` account kinds.
 - Keep environment-specific Azure values in `azd` environment settings or GitHub configuration. Never commit tenant IDs, subscription IDs, credentials, or API keys.
-- Keep the sample's default deployment low-cost: token-governance resources remain opt-in through `ENABLE_TOKEN_USAGE_SAMPLE=true`.
+- Keep billable token-governance resources opt-in through `ENABLE_TOKEN_USAGE_SAMPLE=true`.
 - Update README or `docs/` content when deployment steps, configuration, API behavior, or limitations change.
 
 ## Local validation

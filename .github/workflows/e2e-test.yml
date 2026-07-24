@@ -55,6 +55,27 @@ jobs:
       - name: Install azd
         uses: Azure/setup-azd@v2.3.0
 
+      - name: Validate and set azd environment
+        env:
+          ACCOUNT_KIND: ${{ matrix.account_kind }}
+        run: |
+          case "$ACCOUNT_KIND" in
+            AIServices|OpenAI) ;;
+            *)
+              echo "::error::Unsupported AI account kind."
+              exit 1
+              ;;
+          esac
+
+          if [[ ! "$AZD_ENVIRONMENT_BASE" =~ ^[A-Za-z0-9][A-Za-z0-9-]{0,49}$ ]]; then
+            echo "::error::The environment name must contain 1-50 ASCII letters, digits, or hyphens and begin with a letter or digit."
+            exit 1
+          fi
+
+          environment_suffix="${ACCOUNT_KIND,,}"
+          printf 'AZD_ENVIRONMENT=%s\n' \
+            "${AZD_ENVIRONMENT_BASE}-${environment_suffix}" >> "$GITHUB_ENV"
+
       - name: Azure Login via OIDC
         uses: azure/login@v3.0.0
         with:
@@ -66,17 +87,15 @@ jobs:
         run: azd auth login --client-id "${{ vars.AZURE_CLIENT_ID }}" --federated-credential-provider github --tenant-id "${{ secrets.AZURE_TENANT_ID }}"
 
       - name: Initialize azd environment
+        env:
+          ACCOUNT_KIND: ${{ matrix.account_kind }}
         run: |
-          account_kind="${{ matrix.account_kind }}"
-          environment_suffix="$(printf '%s' "$account_kind" | tr '[:upper:]' '[:lower:]')"
-          AZD_ENVIRONMENT="${AZD_ENVIRONMENT_BASE}-${environment_suffix}"
-          echo "AZD_ENVIRONMENT=$AZD_ENVIRONMENT" >> "$GITHUB_ENV"
           azd env new "$AZD_ENVIRONMENT" || true
           azd env select "$AZD_ENVIRONMENT"
           azd env set AZURE_LOCATION "$AZD_LOCATION"
           azd env set AZURE_SUBSCRIPTION_ID "$AZURE_SUBSCRIPTION_ID"
           azd env set AZURE_RESOURCE_GROUP "rg-$AZD_ENVIRONMENT"
-          azd env set AI_ACCOUNT_KIND "$account_kind"
+          azd env set AI_ACCOUNT_KIND "$ACCOUNT_KIND"
           azd env set ENABLE_TOKEN_USAGE_SAMPLE "true"
 
       - name: Create resource group
