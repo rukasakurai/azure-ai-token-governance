@@ -1,88 +1,66 @@
-# repo-baseline
+# Azure AI token governance sample
 
-A minimal GitHub template repository providing baseline structure and conventions for new projects.
+Standalone Azure Developer CLI (`azd`) and Bicep sample for end-user token governance across:
 
-## What This Is
+- Microsoft Foundry (`AIServices` account kind)
+- Azure OpenAI Service (`OpenAI` account kind)
 
-This is a **template repository** that provides:
-- Contribution guidelines ([CONTRIBUTING.md](CONTRIBUTING.md)) and AI collaboration guidance ([AGENTS.md](AGENTS.md))
-- Issue and pull request templates for structured communication
-- Manual Azure OIDC validation workflow
-- E2E test and azd environment management workflows
-- A starting point that avoids premature technical decisions
+## Architecture
 
-This template is intentionally minimal and public-safe, containing no secrets, licenses, or environment-specific configuration.
+- One AI account + one model deployment (kind is parameterized)
+- Optional sample stack (`ENABLE_TOKEN_USAGE_SAMPLE=true`):
+  - Developer tier APIM with `llm-token-limit` policies
+  - .NET 10 token usage API on App Service
+  - Log Analytics + Application Insights for eventual usage reporting
+  - Azure Table Storage authoritative ledger for strict quota
 
-## How to Use as a Template
+## Deployment
 
-1. Click the **"Use this template"** button on GitHub
-2. Create a new repository from this template (public or private)
-3. Follow the post-creation checklist below
+```bash
+azd env new token-usage-e2e
+azd env set AI_ACCOUNT_KIND AIServices   # or OpenAI
+azd env set ENABLE_TOKEN_USAGE_SAMPLE true
+azd up
+```
 
-## Post-Creation Checklist
+Default quotas are intentionally small for low-cost testing:
 
-After creating a repository from this template, the [`repo-setup` Agent Skill](.github/skills/repo-setup/SKILL.md) can walk an AI agent through these steps:
+- `SIMPLE_TOKEN_QUOTA=600`
+- `STRICT_TOKEN_QUOTA=600`
+- `STRICT_RESERVATION_TOKENS=256`
+- `STRICT_MAX_OUTPUT_TOKENS=64`
+- `STRICT_SAFETY_PADDING_TOKENS=64`
 
-- [ ] **Choose and add a LICENSE file** - This template intentionally omits a license; add one appropriate for your project
-- [ ] **Configure Azure OIDC** (if using Azure) - Set up federated credentials and add the following repository secrets:
-  - `AZURE_CLIENT_ID` (repository variable)
-  - `AZURE_TENANT_ID` (repository secret)
-  - `AZURE_SUBSCRIPTION_ID` (repository secret)
-  
-  See [docs/azure-oidc-setup.md](docs/azure-oidc-setup.md) for detailed setup instructions. Then run the "Azure OIDC Connectivity Check" workflow manually to verify the configuration.
-- [ ] **Enable AI agent Azure access** (if using Azure with Copilot coding agent) - Run `azd coding-agent config` to give AI agents read-time visibility into Azure state while authoring changes. See [docs/azure-coding-agent-guide.md](docs/azure-coding-agent-guide.md) for guidance.
-- [ ] **Discover and install Agent Skills** (optional) - Find reusable [Agent Skills](https://agentskills.io) relevant to your stack and install them with [`gh skill install`](https://cli.github.com/manual/gh_skill_install) (GitHub CLI v2.90.0+). See the [`repo-setup` skill](.github/skills/repo-setup/SKILL.md#discover-and-install-agent-skills) for where to look and how to vet them.
-- [ ] **Update README.md** - Replace this generic template README with repository-specific documentation
-- [ ] **Review AGENTS.md** - Update or remove this file to reflect your repository's specific purpose and conventions
+## APIs and tests
 
-## Included Workflows
+See [docs/token-usage.md](docs/token-usage.md) for endpoints and behavior.
 
-### Azure OIDC Connectivity Check
+Unit tests:
 
-A manual workflow that validates your Azure OIDC configuration is working correctly. Run it after completing the OIDC setup above.
+```bash
+dotnet test tests/token-usage-api/TokenUsage.Api.Tests.csproj
+```
 
-- **Trigger**: Manual (`workflow_dispatch`)
-- **File**: `.github/workflows/azure-oidc-check.yml`
+Isolated end-to-end test:
 
-### E2E Test
+```bash
+./scripts/test-token-usage-e2e.sh --output /tmp/token-usage-result.json
+```
 
-Automates provisioning of infrastructure, application deployment, test execution, and cleanup using the Azure Developer CLI (`azd`). Creates a resource group (with optional tagging from repository secrets) before running `azd provision` and `azd deploy`.
+## Limitations
 
-- **Trigger**: Manual (`workflow_dispatch`)
-- **File**: `.github/workflows/e2e-test.yml`
+- Simple and APIM-only usage endpoints are eventually consistent due to Log Analytics ingestion delay.
+- Strict mode is non-streaming and accepts exactly one `user` text message.
+- This is a demonstration sample and intentionally omits production platform hardening beyond the three approaches.
 
-> ⚠️ **Security note**: Keep this on `workflow_dispatch`. Adding a `pull_request_target` or `workflow_run` trigger that checks out fork code runs untrusted code with this workflow's Azure access (a "pwn request"). See [Security considerations](docs/azure-oidc-setup.md#security-considerations) before changing the triggers.
-- **Inputs** (manual trigger):
-  - `cleanup` — Run `azd down` after tests (default: `true`)
-  - `environment` — azd environment name (default: auto-generated from run ID)
-  - `location` — Azure region (default: `japaneast`)
+## Costs incurred
 
-**Customize for your project**: Edit the "Run tests" step in the workflow to add your E2E test commands (e.g., `pytest tests/e2e/`, `npm test`, or a custom test script).
+With `ENABLE_TOKEN_USAGE_SAMPLE=true`, this deploys billable resources including APIM Developer tier, App Service plan, Log Analytics, Application Insights, Storage account, and AI account/model deployment usage.
 
-#### Required Configuration
+With `ENABLE_TOKEN_USAGE_SAMPLE=false`, APIM/App Service/observability/ledger resources are not deployed.
 
-| Name | Type | Description |
-|------|------|-------------|
-| `AZURE_CLIENT_ID` | Variable | Application (client) ID |
-| `AZURE_TENANT_ID` | Secret | Microsoft Entra tenant ID |
-| `AZURE_SUBSCRIPTION_ID` | Secret | Azure Subscription ID |
-| `RG_TAG_NAME` | Secret | (Optional) Tag name for the resource group |
-| `RG_TAG_VALUE` | Secret | (Optional) Tag value for the resource group |
+## Teardown
 
-### AZD Manage (Up / Down)
-
-Enables on-demand creation (`azd up`) and destruction (`azd down`) of Azure environments using the Azure Developer CLI. Creates a resource group (with optional tagging from repository secrets) before running `azd up`. Useful for managing isolated development, test, or preview environments.
-
-- **Trigger**: Manual (`workflow_dispatch`)
-- **File**: `.github/workflows/azd-manage.yml`
-- **Inputs**:
-  - `action` — `up` or `down` (required)
-  - `environment` — azd environment name (default: repository name, e.g. `my-project` → resource group `rg-my-project`)
-  - `location` — Azure region (default: `japaneast`)
-
-#### Usage
-
-1. Go to **Actions** → **AZD Manage (Up / Down)**
-2. Click **Run workflow**
-3. Select `up` to provision or `down` to tear down
-4. Optionally set a custom environment name and Azure region
+```bash
+azd down --purge --force
+```
