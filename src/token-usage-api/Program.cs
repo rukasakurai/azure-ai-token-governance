@@ -34,7 +34,6 @@ else
     builder.Services.AddSingleton<TableQuotaLedger>();
     builder.Services.AddSingleton<IQuotaLedger>(serviceProvider =>
         serviceProvider.GetRequiredService<TableQuotaLedger>());
-    builder.Services.AddHostedService<TableReservationReaper>();
 }
 
 var app = builder.Build();

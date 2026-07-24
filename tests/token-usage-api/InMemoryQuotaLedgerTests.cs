@@ -160,6 +160,35 @@ public sealed class InMemoryQuotaLedgerTests
         Assert.Equal(0, current.Used);
     }
 
+    [Fact]
+    public async Task HistoryCanBeDisabled()
+    {
+        var time = new TestTimeProvider(new DateTimeOffset(2026, 7, 23, 0, 0, 0, TimeSpan.Zero));
+        var ledger = new InMemoryQuotaLedger(
+            new QuotaLedgerOptions(
+                StrictTokenQuota: 1_000,
+                ReservationTtl: TimeSpan.FromMinutes(3),
+                IncludeHistory: false),
+            time);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var result = await ledger.TryReserveAsync(
+            "consumer-a",
+            300,
+            "model",
+            cancellationToken);
+
+        var usage = await ledger.CompleteAsync(
+            Assert.IsType<QuotaReservation>(result.Reservation),
+            40,
+            25,
+            15,
+            "model",
+            cancellationToken);
+
+        Assert.Equal(40, usage.Used);
+        Assert.Empty(usage.History);
+    }
+
     private static QuotaLedgerOptions CreateOptions() =>
         new(1_000, TimeSpan.FromMinutes(3));
 

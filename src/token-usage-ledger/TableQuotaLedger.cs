@@ -241,30 +241,6 @@ public sealed class TableQuotaLedger(
         }
     }
 
-    public async Task ReapAllExpiredAsync(
-        DateTimeOffset now,
-        CancellationToken cancellationToken)
-    {
-        var filter = TableClient.CreateQueryFilter(
-            $"State eq {ReservationEntity.PendingState} and ExpiresAt le {now}");
-        var expired = new List<ReservationEntity>();
-        await foreach (var entity in table.QueryAsync<ReservationEntity>(
-                           filter,
-                           maxPerPage: 100,
-                           cancellationToken: cancellationToken))
-        {
-            expired.Add(entity);
-        }
-
-        foreach (var entity in expired)
-        {
-            await ChargeExpiredAsync(
-                entity,
-                QuotaPeriod.FromKey(entity.PeriodKey),
-                cancellationToken);
-        }
-    }
-
     private async Task ChargeExpiredAsync(
         ReservationEntity expired,
         QuotaPeriod period,

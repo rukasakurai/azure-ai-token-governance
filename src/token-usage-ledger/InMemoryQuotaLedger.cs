@@ -25,7 +25,11 @@ public sealed class InMemoryQuotaLedger(
                 return new ReservationResult(
                     false,
                     null,
-                    periodState.Snapshot(subscriptionId, options.StrictTokenQuota, now));
+                    periodState.Snapshot(
+                        subscriptionId,
+                        options.StrictTokenQuota,
+                        options.IncludeHistory,
+                        now));
             }
 
             var reservation = new QuotaReservation(
@@ -42,7 +46,11 @@ public sealed class InMemoryQuotaLedger(
             return new ReservationResult(
                 true,
                 reservation,
-                periodState.Snapshot(subscriptionId, options.StrictTokenQuota, now));
+                periodState.Snapshot(
+                    subscriptionId,
+                    options.StrictTokenQuota,
+                    options.IncludeHistory,
+                    now));
         }
         finally
         {
@@ -81,6 +89,7 @@ public sealed class InMemoryQuotaLedger(
                 return periodState.Snapshot(
                     reservation.SubscriptionId,
                     options.StrictTokenQuota,
+                    options.IncludeHistory,
                     now);
             }
 
@@ -96,6 +105,7 @@ public sealed class InMemoryQuotaLedger(
             return periodState.Snapshot(
                 reservation.SubscriptionId,
                 options.StrictTokenQuota,
+                options.IncludeHistory,
                 now);
         }
         finally
@@ -115,7 +125,11 @@ public sealed class InMemoryQuotaLedger(
             var now = timeProvider.GetUtcNow();
             state.ReleaseExpired(now);
             return state.GetPeriod(QuotaPeriod.Monthly(now))
-                .Snapshot(subscriptionId, options.StrictTokenQuota, now);
+                .Snapshot(
+                    subscriptionId,
+                    options.StrictTokenQuota,
+                    options.IncludeHistory,
+                    now);
         }
         finally
         {
@@ -178,24 +192,29 @@ public sealed class InMemoryQuotaLedger(
         internal UsageSnapshot Snapshot(
             string subscriptionId,
             long limit,
+            bool includeHistory,
             DateTimeOffset now)
         {
-            var history = Reservations.Values
-                .Where(item => item.CompletedAt is not null)
-                .GroupBy(item => new
-                {
-                    Day = DateOnly.FromDateTime(item.CompletedAt!.Value.UtcDateTime),
-                    item.Model,
-                })
-                .Select(group => new UsageHistoryPoint(
-                    group.Key.Day,
-                    group.Key.Model,
-                    group.Sum(item => item.PromptTokens),
-                    group.Sum(item => item.CompletionTokens),
-                    group.Sum(item => item.ActualTokens)))
-                .OrderBy(item => item.Day)
-                .ThenBy(item => item.Model, StringComparer.Ordinal)
-                .ToArray();
+            IReadOnlyList<UsageHistoryPoint> history = [];
+            if (includeHistory)
+            {
+                history = Reservations.Values
+                    .Where(item => item.CompletedAt is not null)
+                    .GroupBy(item => new
+                    {
+                        Day = DateOnly.FromDateTime(item.CompletedAt!.Value.UtcDateTime),
+                        item.Model,
+                    })
+                    .Select(group => new UsageHistoryPoint(
+                        group.Key.Day,
+                        group.Key.Model,
+                        group.Sum(item => item.PromptTokens),
+                        group.Sum(item => item.CompletionTokens),
+                        group.Sum(item => item.ActualTokens)))
+                    .OrderBy(item => item.Day)
+                    .ThenBy(item => item.Model, StringComparer.Ordinal)
+                    .ToArray();
+            }
 
             return new UsageSnapshot(
                 "strict",
