@@ -263,12 +263,7 @@ for index in $(seq 1 "$simple_requests"); do
 done
 
 strict_before_file="$tmp_dir/strict-before.json"
-strict_before_status="$(invoke_usage strict "$strict_before_file")"
-if [ "$strict_before_status" -ne 200 ]; then
-  echo "Error: initial strict usage returned HTTP ${strict_before_status}." >&2
-  exit 1
-fi
-strict_used_before="$(jq -er '.used | numbers' "$strict_before_file")"
+strict_used_before="$(wait_for_usage_total strict 0 "$strict_before_file")"
 strict_remaining_before="$(jq -er '.remaining | numbers' "$strict_before_file")"
 if [ $((parallel_requests * strict_reservation_tokens)) -le "$strict_remaining_before" ]; then
   echo "Error: parallel load is too small to exercise authoritative quota rejection." >&2
