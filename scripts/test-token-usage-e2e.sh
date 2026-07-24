@@ -200,7 +200,7 @@ wait_for_usage_total() {
   local minimum="$2"
   local output="$3"
   local deadline=$((SECONDS + eventual_wait_seconds))
-  local status
+  local status=0
   local reported=0
 
   while [ "$SECONDS" -le "$deadline" ]; do
@@ -216,6 +216,10 @@ wait_for_usage_total() {
   done
 
   echo "Error: ${approach} usage did not reach ${minimum} tokens before timeout." >&2
+  echo "Last HTTP status: ${status}" >&2
+  if [ -s "$output" ]; then
+    jq -c . "$output" >&2 || head -c 2000 "$output" >&2
+  fi
   return 1
 }
 
