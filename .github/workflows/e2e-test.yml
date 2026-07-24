@@ -50,13 +50,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
 
       - name: Install azd
-        uses: Azure/setup-azd@v2
+        uses: Azure/setup-azd@v2.3.0
 
       - name: Azure Login via OIDC
-        uses: azure/login@v2
+        uses: azure/login@v3.0.0
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -93,49 +93,8 @@ jobs:
       - name: Provision infrastructure (azd provision)
         run: azd provision --no-prompt
 
-      - name: Enable App Service diagnostics
-        run: |
-          TOKEN_USAGE_API_NAME="$(azd env get-values --output json | jq -er '.TOKEN_USAGE_API_NAME')"
-          echo "TOKEN_USAGE_API_NAME=$TOKEN_USAGE_API_NAME" >> "$GITHUB_ENV"
-          az webapp log config \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$TOKEN_USAGE_API_NAME" \
-            --application-logging filesystem \
-            --docker-container-logging filesystem \
-            --web-server-logging filesystem \
-            --detailed-error-messages true \
-            --level information \
-            --output none
-
       - name: Run tests
         run: ./scripts/test-token-usage-e2e.sh --output /tmp/token-usage-result.json
-
-      - name: Collect App Service diagnostics
-        if: failure() && env.TOKEN_USAGE_API_NAME != ''
-        continue-on-error: true
-        run: |
-          principal_id="$(az webapp identity show \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$TOKEN_USAGE_API_NAME" \
-            --query principalId \
-            --output tsv)"
-          az role assignment list \
-            --assignee-object-id "$principal_id" \
-            --all \
-            --query '[].{role:roleDefinitionName,scope:scope}' \
-            --output table
-
-          log_file=/tmp/token-usage-webapp-logs.zip
-          az webapp log download \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$TOKEN_USAGE_API_NAME" \
-            --log-file "$log_file" || true
-          if [ -f "$log_file" ]; then
-            unzip -p "$log_file" | tail -n 500
-          fi
-          timeout 30 az webapp log tail \
-            --resource-group "$AZURE_RESOURCE_GROUP" \
-            --name "$TOKEN_USAGE_API_NAME" || true
 
       - name: Cleanup (azd down)
         if: always() && inputs.cleanup != false

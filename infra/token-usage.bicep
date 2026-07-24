@@ -296,6 +296,7 @@ resource apiDiagnostic 'Microsoft.ApiManagement/service/apis/diagnostics@2024-05
 
 // LLM diagnostics are only exposed by APIM preview management APIs as of
 // 2026-07-23. Message bodies remain disabled; only token metadata is needed.
+// Preview is required for the APIM LLM token diagnostic configuration.
 resource azureMonitorApiDiagnostic 'Microsoft.ApiManagement/service/apis/diagnostics@2025-09-01-preview' = {
   parent: tokenUsageApi
   name: 'azuremonitor'
@@ -783,6 +784,7 @@ resource tokenUsageSubscription 'Microsoft.ApiManagement/service/subscriptions@2
   }
 }
 
+// Preview is required for dedicated Log Analytics table routing.
 resource apiManagementDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   name: 'token-usage-logs'
   scope: apiManagement
