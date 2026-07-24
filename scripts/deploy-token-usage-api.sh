@@ -13,7 +13,7 @@ if ! is_true "${ENABLE_TOKEN_USAGE_SAMPLE:-false}"; then
   exit 0
 fi
 
-for command_name in az dotnet zip curl; do
+for command_name in az dotnet zip curl jq; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
     echo "Error: '$command_name' is required." >&2
     exit 1
@@ -29,6 +29,39 @@ if [ -z "${AZURE_SUBSCRIPTION_ID:-}" ] \
   echo "Error: token usage azd deployment outputs are required. Ensure ENABLE_TOKEN_USAGE_SAMPLE is true and azd provision succeeded." >&2
   exit 1
 fi
+
+refresh_github_oidc_login() {
+  if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] \
+    && [ -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]; then
+    return
+  fi
+
+  if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] \
+    || [ -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ] \
+    || [ -z "${AZURE_CLIENT_ID:-}" ] \
+    || [ -z "${AZURE_TENANT_ID:-}" ]; then
+    echo "Error: GitHub OIDC environment is incomplete." >&2
+    exit 1
+  fi
+
+  federated_token="$(curl \
+    --fail \
+    --silent \
+    --show-error \
+    --header "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+    "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange" \
+    | jq -er '.value')"
+  az login \
+    --service-principal \
+    --username "$AZURE_CLIENT_ID" \
+    --tenant "$AZURE_TENANT_ID" \
+    --federated-token "$federated_token" \
+    --output none
+  az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+  federated_token=""
+}
+
+refresh_github_oidc_login
 
 tmp_dir="$(mktemp -d)"
 cleanup() {
