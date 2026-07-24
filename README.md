@@ -69,3 +69,7 @@ With `ENABLE_TOKEN_USAGE_SAMPLE=false`, APIM/App Service/observability/ledger re
 ```bash
 azd down --purge --force
 ```
+
+## License
+
+Licensed under the [MIT License](LICENSE).
