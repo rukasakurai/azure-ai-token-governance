@@ -9,7 +9,7 @@ on:
         type: boolean
         default: true
       environment:
-        description: "azd environment name"
+        description: "Base azd environment name (account-kind suffix is added)"
         required: false
         type: string
       location:
@@ -23,12 +23,21 @@ permissions:
   contents: read
 
 env:
-  AZD_ENVIRONMENT: ${{ inputs.environment || format('gha-e2e-{0}-{1}', github.run_id, github.run_attempt) }}
+  AZD_ENVIRONMENT_BASE: ${{ inputs.environment || format('gha-e2e-{0}-{1}', github.run_id, github.run_attempt) }}
   AZD_LOCATION: ${{ inputs.location || 'japaneast' }}
 
 jobs:
   e2e:
+    name: E2E (${{ matrix.account_kind }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - account_kind: AIServices
+            environment_suffix: aiservices
+          - account_kind: OpenAI
+            environment_suffix: openai
 
     steps:
       - name: Checkout
@@ -49,12 +58,14 @@ jobs:
 
       - name: Initialize azd environment
         run: |
+          AZD_ENVIRONMENT="${AZD_ENVIRONMENT_BASE}-${{ matrix.environment_suffix }}"
+          echo "AZD_ENVIRONMENT=$AZD_ENVIRONMENT" >> "$GITHUB_ENV"
           azd env new "$AZD_ENVIRONMENT" || true
           azd env select "$AZD_ENVIRONMENT"
           azd env set AZURE_LOCATION "$AZD_LOCATION"
           azd env set AZURE_SUBSCRIPTION_ID "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
           azd env set AZURE_RESOURCE_GROUP "rg-$AZD_ENVIRONMENT"
-          azd env set AI_ACCOUNT_KIND "AIServices"
+          azd env set AI_ACCOUNT_KIND "${{ matrix.account_kind }}"
           azd env set ENABLE_TOKEN_USAGE_SAMPLE "true"
 
       - name: Create resource group
@@ -70,24 +81,6 @@ jobs:
 
       - name: Provision infrastructure (azd provision)
         run: azd provision --no-prompt
-
-      - name: Deploy application (azd deploy with retries)
-        run: |
-          MAX_RETRIES=5
-          for i in $(seq 1 $MAX_RETRIES); do
-            echo "=== azd deploy attempt $i/$MAX_RETRIES ==="
-            if azd deploy --no-prompt; then
-              echo "azd deploy succeeded on attempt $i"
-              break
-            fi
-            if [ "$i" -eq "$MAX_RETRIES" ]; then
-              echo "::error::azd deploy failed after $MAX_RETRIES attempts"
-              exit 1
-            fi
-            WAIT=$((i * 30))
-            echo "::warning::azd deploy failed (attempt $i/$MAX_RETRIES). Retrying in ${WAIT}s..."
-            sleep "$WAIT"
-          done
 
       - name: Run tests
         run: ./scripts/test-token-usage-e2e.sh --output /tmp/token-usage-result.json

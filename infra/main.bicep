@@ -183,6 +183,7 @@ module tokenUsage 'token-usage.bicep' = if (enableTokenUsageSample) {
 }
 
 output AI_ACCOUNT_KIND string = aiAccountKind
+output AZURE_TENANT_ID string = tenant().tenantId
 output COGNITIVE_SERVICES_NAME string = aiAccount.name
 output COGNITIVE_SERVICES_ENDPOINT string = aiAccount.properties.endpoint
 output MODEL_DEPLOYMENT_NAME string = modelDeployment.name

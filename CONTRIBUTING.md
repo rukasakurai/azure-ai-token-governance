@@ -1,20 +1,46 @@
 # Contributing
 
-Thank you for your interest in contributing to this project. This document is the canonical source of contribution guidelines and applies to **all contributors**—whether working manually or through automated tooling.
+Thank you for contributing to the Azure AI token governance sample. This is the canonical contribution guide for both human contributors and automated tooling.
 
-## Collaboration & Decision-Making Style
+## Project scope
 
-- **Start lean**: Prefer minimal, focused implementations over comprehensive solutions
-- **Minimize changes**: Make the smallest possible modifications to achieve the goal
-- **Defer specifics**: Avoid hardcoding environment-specific values (tenant IDs, subscription IDs, secrets)
-- **Public-safe by default**: Never suggest or add sensitive information (secrets, Azure IDs, API keys)
-- **Template-first thinking**: Any addition should be generally useful across multiple derived repositories
-- **Respect deferred decisions**: Do not add licenses, specific deployment configurations, or technology-specific scaffolding unless explicitly requested
-- **Validate assumptions**: When working on derived repositories, check if baseline conventions are still relevant before applying them
+The repository demonstrates three token-governance approaches for Microsoft Foundry and Azure OpenAI Service using Azure Developer CLI (`azd`), Bicep, API Management, and a .NET 10 API. Keep changes focused on that sample and avoid production-platform features unrelated to the demonstrated approaches.
 
-## Constraints & Assumptions
+## Prerequisites
 
-- **No license file**: License choice is intentionally deferred to derived repositories
-- **No automatic CI/CD**: Continuous integration and deployment patterns vary by project
-- **No secrets or identifiers**: All Azure/cloud credentials must be configured per repository
-- **No technology assumptions**: No language-specific tooling, frameworks, or build systems
+Install the .NET 10 SDK, Azure CLI, Azure Developer CLI (`azd`), `jq`, `curl`, and ShellCheck. Azure deployment validation also requires an authenticated subscription with permission to create the resources described in the README.
+
+## Development guidelines
+
+- Prefer small, surgical changes over new abstractions or additional infrastructure.
+- Preserve support for both `AIServices` and `OpenAI` account kinds.
+- Keep environment-specific Azure values in `azd` environment settings or GitHub configuration. Never commit tenant IDs, subscription IDs, credentials, or API keys.
+- Keep the sample's default deployment low-cost: token-governance resources remain opt-in through `ENABLE_TOKEN_USAGE_SAMPLE=true`.
+- Update README or `docs/` content when deployment steps, configuration, API behavior, or limitations change.
+
+## Local validation
+
+Run the checks relevant to the files you changed:
+
+```bash
+dotnet test tests/token-usage-api/TokenUsage.Api.Tests.csproj
+az bicep build --file infra/main.bicep --stdout >/dev/null
+shellcheck scripts/*.sh
+```
+
+For deployment or integration changes, provision an isolated environment for the account kind being tested:
+
+```bash
+azd env new token-usage-e2e
+azd env set AI_ACCOUNT_KIND AIServices   # or OpenAI
+azd env set ENABLE_TOKEN_USAGE_SAMPLE true
+azd up
+./scripts/test-token-usage-e2e.sh --output /tmp/token-usage-result.json
+azd down --purge --force
+```
+
+The GitHub Actions E2E workflow exercises both account kinds. Azure runs create billable resources, so always clean up test environments.
+
+## Pull requests
+
+Describe the behavior changed, the validation performed, and any Azure cost or compatibility impact. Keep pull requests narrow and do not include generated deployment state, local `azd` environment files, or sensitive output.

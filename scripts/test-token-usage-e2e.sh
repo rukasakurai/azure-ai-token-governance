@@ -146,7 +146,7 @@ jq -n '{
 base_url="${apim_gateway_url%/}/token-usage"
 
 health_ready=false
-for attempt in $(seq 1 12); do
+for _ in $(seq 1 12); do
   status="$(curl \
     --silent \
     --show-error \
