@@ -17,33 +17,32 @@ public sealed class InMemoryQuotaLedger(
         try
         {
             var now = timeProvider.GetUtcNow();
-            var period = QuotaPeriod.Monthly(now);
-            state.ResetIfNeeded(period);
+            var periodState = state.GetPeriod(QuotaPeriod.Monthly(now));
             state.ReleaseExpired(now);
 
-            if (state.Used + state.Reserved + tokens > options.StrictTokenQuota)
+            if (periodState.Used + periodState.Reserved + tokens > options.StrictTokenQuota)
             {
                 return new ReservationResult(
                     false,
                     null,
-                    state.Snapshot(subscriptionId, options.StrictTokenQuota, now));
+                    periodState.Snapshot(subscriptionId, options.StrictTokenQuota, now));
             }
 
             var reservation = new QuotaReservation(
                 subscriptionId,
                 Guid.NewGuid().ToString("N"),
                 tokens,
-                period,
+                periodState.Period,
                 now.Add(options.ReservationTtl));
-            state.Reservations.Add(
+            periodState.Reservations.Add(
                 reservation.ReservationId,
                 new PendingReservation(reservation, model));
-            state.Reserved += tokens;
+            periodState.Reserved += tokens;
 
             return new ReservationResult(
                 true,
                 reservation,
-                state.Snapshot(subscriptionId, options.StrictTokenQuota, now));
+                periodState.Snapshot(subscriptionId, options.StrictTokenQuota, now));
         }
         finally
         {
@@ -59,28 +58,34 @@ public sealed class InMemoryQuotaLedger(
         string model,
         CancellationToken cancellationToken)
     {
-        var state = states.GetOrAdd(reservation.SubscriptionId, _ => new SubscriptionState());
+        var state = states.GetOrAdd(
+            reservation.SubscriptionId,
+            _ => new SubscriptionState());
         await state.Lock.WaitAsync(cancellationToken);
         try
         {
             var now = timeProvider.GetUtcNow();
-            state.ResetIfNeeded(QuotaPeriod.Monthly(now));
+            state.ReleaseExpired(now);
+            var periodState = state.FindPeriod(reservation.Period);
 
-            if (!state.Reservations.TryGetValue(reservation.ReservationId, out var pending))
+            if (periodState is null
+                || !periodState.Reservations.TryGetValue(
+                    reservation.ReservationId,
+                    out var pending))
             {
                 throw new InvalidOperationException("The quota reservation no longer exists.");
             }
 
             if (pending.Completed)
             {
-                return state.Snapshot(
+                return periodState.Snapshot(
                     reservation.SubscriptionId,
                     options.StrictTokenQuota,
                     now);
             }
 
-            state.Reserved -= reservation.ReservedTokens;
-            state.Used += actualTokens;
+            periodState.Reserved -= reservation.ReservedTokens;
+            periodState.Used += actualTokens;
             pending.Completed = true;
             pending.ActualTokens = actualTokens;
             pending.PromptTokens = promptTokens;
@@ -88,7 +93,7 @@ public sealed class InMemoryQuotaLedger(
             pending.Model = model;
             pending.CompletedAt = now;
 
-            return state.Snapshot(
+            return periodState.Snapshot(
                 reservation.SubscriptionId,
                 options.StrictTokenQuota,
                 now);
@@ -108,9 +113,9 @@ public sealed class InMemoryQuotaLedger(
         try
         {
             var now = timeProvider.GetUtcNow();
-            state.ResetIfNeeded(QuotaPeriod.Monthly(now));
             state.ReleaseExpired(now);
-            return state.Snapshot(subscriptionId, options.StrictTokenQuota, now);
+            return state.GetPeriod(QuotaPeriod.Monthly(now))
+                .Snapshot(subscriptionId, options.StrictTokenQuota, now);
         }
         finally
         {
@@ -122,27 +127,40 @@ public sealed class InMemoryQuotaLedger(
     {
         internal SemaphoreSlim Lock { get; } = new(1, 1);
 
-        internal QuotaPeriod Period { get; private set; } =
-            QuotaPeriod.Monthly(DateTimeOffset.UtcNow);
+        private Dictionary<string, PeriodState> Periods { get; } = [];
+
+        internal PeriodState GetPeriod(QuotaPeriod period)
+        {
+            if (!Periods.TryGetValue(period.Key, out var state))
+            {
+                state = new PeriodState(period);
+                Periods.Add(period.Key, state);
+            }
+
+            return state;
+        }
+
+        internal PeriodState? FindPeriod(QuotaPeriod period) =>
+            Periods.GetValueOrDefault(period.Key);
+
+        internal void ReleaseExpired(DateTimeOffset now)
+        {
+            foreach (var period in Periods.Values)
+            {
+                period.ReleaseExpired(now);
+            }
+        }
+    }
+
+    private sealed class PeriodState(QuotaPeriod period)
+    {
+        internal QuotaPeriod Period { get; } = period;
 
         internal long Used { get; set; }
 
         internal long Reserved { get; set; }
 
         internal Dictionary<string, PendingReservation> Reservations { get; } = [];
-
-        internal void ResetIfNeeded(QuotaPeriod period)
-        {
-            if (Period.Key == period.Key)
-            {
-                return;
-            }
-
-            Period = period;
-            Used = 0;
-            Reserved = 0;
-            Reservations.Clear();
-        }
 
         internal void ReleaseExpired(DateTimeOffset now)
         {

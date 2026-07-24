@@ -95,6 +95,71 @@ public sealed class InMemoryQuotaLedgerTests
         Assert.Equal(1_000, usage.Remaining);
     }
 
+    [Fact]
+    public async Task ReservationCompletesInOriginalPeriodAfterMonthRollover()
+    {
+        var time = new TestTimeProvider(new DateTimeOffset(2026, 7, 31, 23, 59, 0, TimeSpan.Zero));
+        var ledger = new InMemoryQuotaLedger(CreateOptions(), time);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var result = await ledger.TryReserveAsync(
+            "consumer-a",
+            300,
+            "model",
+            cancellationToken);
+        var reservation = Assert.IsType<QuotaReservation>(result.Reservation);
+
+        time.Advance(TimeSpan.FromMinutes(2));
+        var newPeriod = await ledger.GetUsageAsync("consumer-a", cancellationToken);
+        var completed = await ledger.CompleteAsync(
+            reservation,
+            40,
+            25,
+            15,
+            "model",
+            cancellationToken);
+        var current = await ledger.GetUsageAsync("consumer-a", cancellationToken);
+
+        Assert.Equal(reservation.Period.Start, completed.PeriodStart);
+        Assert.Equal(40, completed.Used);
+        Assert.Equal(0, completed.Reserved);
+        Assert.Equal(960, completed.Remaining);
+        Assert.Equal(new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero), newPeriod.PeriodStart);
+        Assert.Equal(newPeriod.PeriodStart, current.PeriodStart);
+        Assert.Equal(0, current.Used);
+        Assert.Equal(1_000, current.Remaining);
+    }
+
+    [Fact]
+    public async Task ExpiredReservationAcrossMonthRolloverIsChargedConservatively()
+    {
+        var time = new TestTimeProvider(new DateTimeOffset(2026, 7, 31, 23, 59, 0, TimeSpan.Zero));
+        var ledger = new InMemoryQuotaLedger(CreateOptions(), time);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var result = await ledger.TryReserveAsync(
+            "consumer-a",
+            300,
+            "model",
+            cancellationToken);
+        var reservation = Assert.IsType<QuotaReservation>(result.Reservation);
+
+        time.Advance(TimeSpan.FromMinutes(4));
+        var current = await ledger.GetUsageAsync("consumer-a", cancellationToken);
+        var completed = await ledger.CompleteAsync(
+            reservation,
+            40,
+            25,
+            15,
+            "model",
+            cancellationToken);
+
+        Assert.Equal(reservation.Period.Start, completed.PeriodStart);
+        Assert.Equal(300, completed.Used);
+        Assert.Equal(0, completed.Reserved);
+        Assert.Equal(700, completed.Remaining);
+        Assert.Equal(new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero), current.PeriodStart);
+        Assert.Equal(0, current.Used);
+    }
+
     private static QuotaLedgerOptions CreateOptions() =>
         new(1_000, TimeSpan.FromMinutes(3));
 
