@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+name: azure-ai-token-governance
+metadata:
+  template: azure-ai-token-governance@0.0.1
+infra:
+  provider: bicep
+  path: infra
+  module: main
+hooks:
+  postprovision:
+    posix:
+      shell: sh
+      run: ./scripts/deploy-token-usage-api.sh
+      interactive: false
+      continueOnError: false

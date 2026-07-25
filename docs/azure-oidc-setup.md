@@ -287,6 +287,11 @@ This repository’s workflow is set up to use:
 
 > Optional: If you prefer storing `AZURE_TENANT_ID` and `AZURE_SUBSCRIPTION_ID` as **variables** instead of secrets, update the workflow to use `vars.AZURE_TENANT_ID` and `vars.AZURE_SUBSCRIPTION_ID` (and update the “required repo config” checks accordingly).
 
+> Optional governed-subscription tags: the deployment workflows also read
+> `RG_TAG_NAME` and `RG_TAG_VALUE` repository secrets. Configure them only when
+> your Azure administrator requires an approved resource-group tag for policy
+> compatibility.
+
 ## Step 5: Verify Configuration
 
 This repository includes a workflow to validate your Azure OIDC configuration.
@@ -392,4 +397,3 @@ OIDC removes long-lived secrets, but the app registration it authenticates is st
 - Shell: PowerShell 7.5.4 (Core)
 - Tester: Automated Documentation Tester (with human intervention)
 - Notes: Completed Entra app + service principal creation, federated credential creation (required using application object id in `az ad app federated-credential`), Reader RBAC assignment, and successfully ran the "Azure OIDC Connectivity Check" workflow. Human steps: authenticated `az login`, configured GitHub Actions variable/secret values in the repo settings UI, and clicked "Run workflow".
-
