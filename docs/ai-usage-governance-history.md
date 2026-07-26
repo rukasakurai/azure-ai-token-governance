@@ -1,5 +1,10 @@
 # Evolution of AI usage and cost governance
 
+> **Point-in-time notice:** Product availability, meters, prices, and
+> administrative controls change frequently. Verify current vendor
+> documentation before making purchasing or governance decisions; cited
+> announcements are not evidence of future roadmap commitments.
+
 This document traces how usage and cost governance evolved for GitHub Copilot,
 Microsoft 365 Copilot Cowork, and Microsoft Work IQ through 2026-07-25. It uses
 first-party GitHub and Microsoft sources exclusively.

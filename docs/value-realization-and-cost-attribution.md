@@ -1,5 +1,10 @@
 # AI value realization and cost attribution
 
+> **Caution:** This framework is intended for investment and system-governance
+> decisions. Individual usage is not a standalone measure of productivity or
+> performance, and observed outcomes do not by themselves establish that AI
+> caused the result.
+
 AI cost governance is ultimately a capital-allocation problem, not merely a
 token-management problem. An organization should compare the risk-adjusted
 value expected from an AI investment with its total cost and with the return

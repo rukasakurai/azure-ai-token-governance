@@ -1,5 +1,10 @@
 # Azure token logging, alerting, and blocking capabilities
 
+> **Scope warning:** This is a point-in-time capability analysis, not a
+> production architecture or guarantee of cost containment. Enforcement
+> accuracy depends on identity, routing, concurrency, streaming behavior,
+> gateway topology, and whether callers can bypass the governed path.
+
 | Governance scope | What the scope means | Log consumed tokens | Alert when a token threshold is exceeded | Block further use after a token threshold is exceeded |
 | --- | --- | --- | --- | --- |
 | Single model request | One call from a client or agent to a language-model API | **Mechanism:** APIM request telemetry.<br>**Requires:** Azure management-plane configuration to enable generative-AI diagnostics and a Log Analytics destination.<br>**Limitation:** final token data can be absent or inaccurate for interrupted streams. | **Mechanism:** Azure Monitor log alert.<br>**Requires:** Azure management-plane configuration of a query, threshold, evaluation frequency, and action group.<br>**Limitation:** evaluation occurs after telemetry ingestion and cannot prevent the triggering request. | **Mechanism:** APIM pre-request guard with post-response accounting.<br>**Requires:** an APIM data-plane policy deployed through the Azure management plane; prompt estimation or request caps can strengthen the guard.<br>**Limitation:** final output tokens are unknown before completion, so an exact per-request total-token cap is unavailable. |
