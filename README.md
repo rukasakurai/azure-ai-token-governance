@@ -5,6 +5,20 @@ Standalone Azure Developer CLI (`azd`) and Bicep sample for per-APIM-subscriptio
 - Microsoft Foundry (`AIServices` account kind)
 - Azure OpenAI Service (`OpenAI` account kind)
 
+## Governance framing
+
+Token limits are one control within broader AI usage and cost governance. Cost
+attribution should follow the expected source of value while preserving the
+human, workload, organizational, and funding dimensions needed for different
+decisions.
+
+- [AI value realization and cost attribution](docs/value-realization-and-cost-attribution.md)
+- [Azure token logging, alerting, and blocking capabilities](docs/azure-token-control-capabilities.md)
+- [Evolution of AI usage and cost governance](docs/ai-usage-governance-history.md)
+
+The product comparisons in these documents provide context; this repository's
+runnable implementation remains limited to Foundry, Azure OpenAI, and APIM.
+
 ## Architecture
 
 - One AI account + one model deployment (kind is parameterized)
