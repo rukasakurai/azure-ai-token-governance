@@ -250,6 +250,9 @@ service policies
 
 ## Cross-product lessons
 
+The following is a retrospective synthesis of the cited public announcements,
+not a prediction or statement of any non-public product roadmap.
+
 The product histories show a recurring progression:
 
 1. **License-gated access.** A seat or add-on initially determines who can use

@@ -146,6 +146,11 @@ and gateway-local counter limitations.
 
 ### Authenticated individual
 
+> **Responsible use:** Individual attribution supports cost and system
+> governance; it is not a standalone measure of employee productivity or
+> performance. See
+> [AI value realization and cost attribution](value-realization-and-cost-attribution.md#avoid-misusing-individual-attribution).
+
 Application Insights supports authenticated user identifiers, and APIM token
 metrics can use APIM User ID or a custom policy-expression dimension
 ([Application Insights user analysis](https://learn.microsoft.com/en-us/azure/azure-monitor/app/usage#track-user-interactions-with-custom-events),

@@ -1,5 +1,9 @@
 # Azure AI token governance sample
 
+> **Independent project:** This is a personal project, not an official
+> Microsoft or GitHub publication. It does not represent the positions of
+> Microsoft, GitHub, or any employer.
+
 Standalone Azure Developer CLI (`azd`) and Bicep sample for per-APIM-subscription token quota governance across:
 
 - Microsoft Foundry (`AIServices` account kind)
