@@ -1,6 +1,8 @@
 # Evolution of AI usage and cost governance
 
-> **Point-in-time notice:** Product availability, meters, prices, and
+> **Point-in-time notice:** This independent personal project is not an official
+> Microsoft or GitHub publication and does not represent the positions of
+> either company or any employer. Product availability, meters, prices, and
 > administrative controls change frequently. Verify current vendor
 > documentation before making purchasing or governance decisions; cited
 > announcements are not evidence of future roadmap commitments.
@@ -246,7 +248,7 @@ usage is charged separately and governed through tenant, group, user, and
 service policies
 ([initial API licensing](https://devblogs.microsoft.com/microsoft365dev/microsoft-365-copilot-apis/),
 [current access and pricing](https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/work-iq/#access-and-pricing),
-[API authorization model](https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/work-iq/api-overview#authorization)).
+[API authentication model](https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/work-iq/api-overview#authentication-and-security)).
 
 ## Cross-product lessons
 

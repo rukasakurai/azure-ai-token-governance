@@ -1,7 +1,9 @@
 # Azure token control and consumer visibility capabilities
 
-> **Scope warning:** This is a point-in-time capability analysis, not a
-> production architecture or guarantee of cost containment. Enforcement
+> **Scope warning:** This independent personal project is not an official
+> Microsoft or GitHub publication and does not represent the positions of
+> either company or any employer. This is a point-in-time capability analysis,
+> not a production architecture or guarantee of cost containment. Enforcement
 > accuracy depends on identity, routing, concurrency, streaming behavior,
 > gateway topology, and whether callers can bypass the governed path.
 
@@ -180,7 +182,9 @@ and gateway-local counter limitations.
 > [AI value realization and cost attribution](value-realization-and-cost-attribution.md#avoid-misusing-individual-attribution).
 
 Application Insights supports authenticated user identifiers, and APIM token
-metrics can use APIM User ID or a custom policy-expression dimension
+metrics can use APIM's `User ID` dimension, which identifies APIM's own user
+entity and is not necessarily an Entra-validated identity, or a custom
+policy-expression dimension
 ([Application Insights user analysis](https://learn.microsoft.com/en-us/azure/azure-monitor/app/usage#track-user-interactions-with-custom-events),
 [APIM token dimensions](https://learn.microsoft.com/en-us/azure/api-management/llm-emit-token-metric-policy)).
 Azure Monitor can then aggregate and alert by that identifier, and APIM can use
