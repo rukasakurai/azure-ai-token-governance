@@ -1,4 +1,4 @@
-# Azure token logging, alerting, and blocking capabilities
+# Azure token control and consumer visibility capabilities
 
 > **Scope warning:** This is a point-in-time capability analysis, not a
 > production architecture or guarantee of cost containment. Enforcement
@@ -63,6 +63,34 @@ The table describes representative implementations for Azure OpenAI traffic,
 especially traffic routed through APIM. Equivalent identity providers,
 telemetry pipelines, or data stores can satisfy some requirements, but they do
 not change the stated responsibility or limitation.
+
+## Consumer-facing governance capabilities
+
+The matrix above describes controls available to platform administrators and
+application owners. A consumer without Azure portal access or Azure RBAC can
+still observe and respond to some quota state through the API contract, but
+only when the organization exposes that information.
+
+| Consumer need | Available Azure or APIM surface | What the organization must configure or build | Boundary |
+| --- | --- | --- | --- |
+| See tokens consumed by the current request | APIM can add a response header containing the prompt and completion tokens consumed by the request. | Configure `tokens-consumed-header-name` in the APIM `llm-token-limit` policy and document the chosen header name. | The header is added only after the backend response. Streaming responses use estimates, and interrupted responses can produce incomplete or inaccurate counts ([policy attributes](https://learn.microsoft.com/en-us/azure/api-management/llm-token-limit-policy#attributes), [token-count considerations](https://learn.microsoft.com/en-us/azure/api-management/llm-token-limit-policy#considerations-for-token-counts-and-estimation)). |
+| See the remaining short-term rate allowance | APIM can add a response header containing the remaining tokens in the rate-limit interval. | Configure `remaining-tokens-header-name` and make the header part of the consumer API contract. | The value represents the configured APIM counter and gateway, not a provider-wide or enterprise-wide allowance ([policy attributes](https://learn.microsoft.com/en-us/azure/api-management/llm-token-limit-policy#attributes), [gateway-local counters](https://learn.microsoft.com/en-us/azure/api-management/llm-token-limit-policy#usage-notes)). |
+| See the remaining periodic quota | APIM can add a response header containing the estimated tokens remaining in the hourly, daily, weekly, monthly, or yearly quota period. | Configure `remaining-quota-tokens-header-name` and disclose which identity or subscription the counter represents. | Microsoft documents the remaining quota as an estimate that can be higher than expected until the quota is approached ([policy attributes](https://learn.microsoft.com/en-us/azure/api-management/llm-token-limit-policy#attributes), [remaining-quota accuracy](https://learn.microsoft.com/en-us/azure/api-management/llm-token-limit-policy#usage-notes)). |
+| Understand a rejection and know when to retry | APIM returns `429 Too Many Requests` for a token rate violation and `403 Forbidden` for a periodic token quota violation. It can return a `Retry-After` header. | Configure the policy and, if needed, a custom retry-header name and consumer-facing error body. | The status and retry interval identify the immediate gateway decision; they do not explain organizational ownership, funding, or whether another gateway has separate capacity ([APIM token limits](https://learn.microsoft.com/en-us/azure/api-management/llm-token-limit-policy)). |
+| Know the configured quota limit | The documented `llm-token-limit` response surface has no attribute that automatically emits the configured `token-quota` value. | Publish the limit in API documentation, add a custom response header, or return it from a protected usage endpoint. | A separately published limit can drift from policy configuration unless both are deployed from the same source of truth ([policy statement and attributes](https://learn.microsoft.com/en-us/azure/api-management/llm-token-limit-policy#policy-statement)). |
+| Know when the quota period resets | APIM defines fixed UTC hourly, daily, weekly, monthly, or yearly periods and can return a retry interval after a limit is exceeded. | Expose the period and calculated reset time through documentation, a custom response header, or a protected usage endpoint. | The documented policy does not provide an always-present absolute reset timestamp to the consumer ([quota-period attribute](https://learn.microsoft.com/en-us/azure/api-management/llm-token-limit-policy#attributes)). |
+| Query current-period usage outside an individual request | This repository demonstrates protected `GET /usage` endpoints for APIM subscription-scoped state. | Build and authorize a query API over APIM logs or an authoritative ledger, as demonstrated by the [sample API surface](token-usage.md#api-surface). | The documented APIM policy exposes headers and policy variables during request processing but does not document a consumer query operation for its internal token counter ([APIM token-limit policy](https://learn.microsoft.com/en-us/azure/api-management/llm-token-limit-policy)). |
+| View historical usage by day or model | APIM generative-AI logs contain token consumption and model-deployment details that administrators can query in Log Analytics. | Build a protected consumer API or interface that filters the administrative telemetry to the caller's authorized scope. | Direct Log Analytics or Azure portal access is an administrator/developer experience and can expose data outside the consumer's scope if authorization is not added carefully ([APIM language-model logging](https://learn.microsoft.com/en-us/azure/api-management/api-management-howto-llm-logs)). |
+| Receive threshold notifications | Azure Monitor action groups can send email, SMS, push, webhook, or other notifications when an alert fires. | An administrator must create the alert and action group, or the organization must build a delegated notification-preference experience. | The documented Azure Monitor alert surface is administrator-configured and does not describe a token-specific consumer self-service subscription experience ([Azure Monitor alerts](https://learn.microsoft.com/en-us/azure/azure-monitor/alerts/alerts-overview)). |
+| Understand whether usage is personal or shared | Response headers reflect the `counter-key` selected by the APIM policy. | Disclose the quota scope in documentation or a response field and propagate a validated individual identity if personal attribution is intended. | A shared APIM subscription key produces shared state unless the policy uses another trustworthy identity for its counter ([counter-key behavior](https://learn.microsoft.com/en-us/azure/api-management/llm-token-limit-policy#attributes)). |
+| Respond to approaching or exhausted limits | A client can delay requests based on `Retry-After`, reduce optional work, or stop submitting requests. | The client or application must expose and implement those choices; APIM supplies signals and enforcement, not the consumer workflow. | Consumers cannot change the configured quota or counter scope through the `llm-token-limit` response surface ([APIM token limits](https://learn.microsoft.com/en-us/azure/api-management/llm-token-limit-policy)). |
+
+Response headers are useful per-request signals, but they are not a complete
+self-service usage experience. A durable consumer view normally needs an
+authorized read model that reports the limit, used and remaining amounts,
+period boundaries, scope, and any permitted history from one consistent source.
+This section describes documented current surfaces and makes no claim about
+future product roadmaps or undisclosed plans.
 
 ## Native request and gateway scopes
 

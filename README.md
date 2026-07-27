@@ -17,7 +17,7 @@ human, workload, organizational, and funding dimensions needed for different
 decisions.
 
 - [AI value realization and cost attribution](docs/value-realization-and-cost-attribution.md)
-- [Azure token logging, alerting, and blocking capabilities](docs/azure-token-control-capabilities.md)
+- [Azure token control and consumer visibility capabilities](docs/azure-token-control-capabilities.md)
 - [Evolution of AI usage and cost governance](docs/ai-usage-governance-history.md)
 
 The product comparisons in these documents provide context; this repository's
