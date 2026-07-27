@@ -1,9 +1,27 @@
 # Azure AI token governance sample
 
+> **Independent project:** This is a personal project, not an official
+> Microsoft or GitHub publication. It does not represent the positions of
+> Microsoft, GitHub, or any employer.
+
 Standalone Azure Developer CLI (`azd`) and Bicep sample for per-APIM-subscription token quota governance across:
 
 - Microsoft Foundry (`AIServices` account kind)
 - Azure OpenAI Service (`OpenAI` account kind)
+
+## Governance framing
+
+Token limits are one control within broader AI usage and cost governance. Cost
+attribution should follow the expected source of value while preserving the
+human, workload, organizational, and funding dimensions needed for different
+decisions.
+
+- [AI value realization and cost attribution](docs/value-realization-and-cost-attribution.md)
+- [Azure token control and consumer visibility capabilities](docs/azure-token-control-capabilities.md)
+- [Evolution of AI usage and cost governance](docs/ai-usage-governance-history.md)
+
+The product comparisons in these documents provide context; this repository's
+runnable implementation remains limited to Foundry, Azure OpenAI, and APIM.
 
 ## Architecture
 
